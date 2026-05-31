@@ -1,6 +1,6 @@
 # PlayWeather
 
-> 原作者：朱江（Copyright (c) 2021 朱江，见 [LICENSE](LICENSE)）
+> 原作者：朱江（Copyright (c) 2021 朱江，见 [LICENSE](../LICENSE)）
 >
 > 本仓库为对原项目的**复现/搬运与构建验证**，用于学习与复现记录；功能与资源版权归原作者及其声明所有。
 
