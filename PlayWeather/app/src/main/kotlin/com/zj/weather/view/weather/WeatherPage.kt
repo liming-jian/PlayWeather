@@ -1,0 +1,180 @@
+package com.zj.weather.view.weather
+
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.zj.model.PlayLoading
+import com.zj.model.WeatherModel
+import com.zj.model.air.AirNowBean
+import com.zj.model.room.entity.CityInfo
+import com.zj.model.weather.WeatherDailyBean
+import com.zj.model.weather.WeatherNowBean
+import com.zj.utils.lce.LcePage
+import com.zj.utils.view.ImageLoader
+import com.zj.utils.weather.IconUtils
+import com.zj.utils.weather.isDaytime
+import com.zj.weather.R
+import com.zj.weather.view.weather.viewmodel.WeatherViewModel
+import com.zj.weather.view.weather.widget.HeaderAction
+import com.zj.weather.view.weather.widget.HeaderWeather
+import com.zj.weather.view.weather.widget.WeatherAnimation
+import com.zj.weather.view.weather.widget.WeatherContent
+import com.zui.animate.weather.WeatherBackground
+
+@Composable
+fun WeatherPage(
+    weatherViewModel: WeatherViewModel,
+    cityInfo: CityInfo,
+    onErrorClick: () -> Unit,
+    cityList: () -> Unit,
+    toCityMap: (Double, Double) -> Unit,
+    cityListClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val weatherFlow = remember(cityInfo.uid, cityInfo.locationId, cityInfo.location) {
+        weatherViewModel.weatherModel(cityInfo)
+    }
+    val weatherModel by weatherFlow.collectAsState(PlayLoading)
+    val isLand = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    LcePage(playState = weatherModel, onErrorClick = onErrorClick) { weather ->
+        val isDay = isDaytime(
+            weather?.nowBaseBean?.obsTime,
+            weather?.dailyBean?.sunrise,
+            weather?.dailyBean?.sunset
+        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            ImageLoader(
+                modifier = Modifier.fillMaxSize(),
+                data = IconUtils.getWeatherBack(context, weather?.nowBaseBean?.icon, isDay)
+            )
+            WeatherBackground(modifier = Modifier.fillMaxSize(), weather?.nowBaseBean?.icon)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HeaderAction(
+                    modifier = Modifier.weight(1f),
+                    cityListClick = cityListClick,
+                    cityList = cityList
+                )
+                if (isLand) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            if (isLand) {
+                // 横屏适配
+                HorizontalWeather(cityInfo, weather, isDay, toCityMap)
+            } else {
+                // 竖屏适配
+                VerticalWeather(cityInfo, weather, isDay, toCityMap)
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerticalWeather(
+    cityInfo: CityInfo,
+    weather: WeatherModel?,
+    isDay: Boolean,
+    toCityMap: (Double, Double) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = dimensionResource(id = R.dimen.page_margin))
+    ) {
+        WeatherContent(
+            Modifier, cityInfo, weather, isDay = isDay, toCityMap = toCityMap
+        )
+    }
+}
+
+@Composable
+private fun HorizontalWeather(
+    cityInfo: CityInfo,
+    weather: WeatherModel?,
+    isDay: Boolean,
+    toCityMap: (Double, Double) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = dimensionResource(id = R.dimen.page_margin))
+    ) {
+        val landModifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+        Column(
+            modifier = landModifier,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            // 天气头部
+            HeaderWeather(
+                cityInfo, weather?.nowBaseBean, true, toCityMap = toCityMap
+            )
+
+            // 天气动画
+            WeatherAnimation(weather?.nowBaseBean?.icon, isDay)
+        }
+        WeatherContent(
+            landModifier, cityInfo,
+            weather, true, isDay = isDay, toCityMap = toCityMap
+        )
+    }
+}
+
+@Preview(showBackground = false, name = "竖屏天气")
+@Composable
+fun VerticalWeatherPreview() {
+    VerticalWeather(
+        CityInfo(name = "测试"), buildWeatherModel(), true,
+    ) { _, _ -> }
+}
+
+@Composable
+private fun buildWeatherModel(): WeatherModel {
+    val nowBean = WeatherNowBean.NowBaseBean()
+    nowBean.text = "多云"
+    nowBean.temp = "25"
+    return WeatherModel(
+        nowBaseBean = nowBean,
+        hourlyBeanList = listOf(),
+        dailyBean = WeatherDailyBean.DailyBean(),
+        dailyBeanList = listOf(),
+        airNowBean = AirNowBean.NowBean()
+    )
+}
+
+@Preview(showBackground = false, name = "横屏天气", heightDp = 320, widthDp = 640)
+@Composable
+fun HorizontalWeatherPreview() {
+    HorizontalWeather(
+        CityInfo(name = "测试"), buildWeatherModel(), true,
+    ) { _, _ -> }
+}
